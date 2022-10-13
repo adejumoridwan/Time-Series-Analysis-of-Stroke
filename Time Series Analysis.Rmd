@@ -56,10 +56,13 @@ stroke |>
   ggplot(aes(y = Year, x = Count,fill = Year)) +
   geom_col() +
   facet_wrap(Age_Categorized ~ .) +
-  xlab("Year") +
-  ylab("No of Cases") +
-  ggtitle("Incidence of Stroke in Various Age groups from 2010-2021")
+  xlab("No of Cases") +
+  ggtitle("Incidence of Stroke in Various Age groups from 2010-2021") +
+  theme(axis.title.y=element_blank(),
+  axis.text.y=element_blank(),
+  axis.ticks.y=element_blank())
 ```
+
 ## Number of Deaths in Various Age groups from 2010-2021
 ```{r}
 stroke |> 
@@ -70,15 +73,14 @@ stroke |>
   ggplot(aes(y = Year, x = Count,fill = Year)) +
   geom_col() +
   facet_wrap(Age_Categorized ~ .) +
-  xlab("Year") +
-  ylab("No of Deaths") +
+  xlab("Number of Cases") +
   ggtitle("Number of Deaths in Various Age groups from 2010-2021") +
   theme(axis.title.y=element_blank(),
     axis.text.y=element_blank(),
     axis.ticks.y=element_blank())
 ```
 
-## Number of cases by local government from the year 2010-2021
+## Incidence cases by local government from the year 2010-2021
 ```{r}
 stroke |> 
   group_by(Year, LGA) |> 
@@ -94,6 +96,24 @@ stroke |>
       axis.text.x=element_blank(),
       axis.ticks.x=element_blank())
 ```
+## No of deaths across various local governments from 2010-2021
+```{r}
+stroke |> 
+  filter(Outcome == "Dead") |> 
+  group_by(Year, LGA) |> 
+  summarize(Count = n()) |> 
+  mutate_at(vars(Year),factor) |> 
+  ggplot(aes(x = Year, y = Count,fill = Year)) +
+  geom_col() +
+  facet_wrap(LGA ~ .) +
+  xlab("Year") +
+  ylab("No of Cases") +
+  ggtitle("Number of Deaths in Various Local governments from 2010-2021") +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank())
+```
+
 
 ## Frequency by Local government
 ```{r}
