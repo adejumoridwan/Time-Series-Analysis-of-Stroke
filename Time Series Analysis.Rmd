@@ -9,7 +9,6 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(fpp2)
-
 ```
 
 # Data Cleaning and Manipulation
@@ -25,27 +24,21 @@ stroke <- read_csv("~/Time-Series-Analysis-of-Stroke/Stroke time.csv") |>
 # stroke incidence
 incidence <- stroke |> 
   group_by(Date) |> 
-  summarize(Count = n())
+  summarize(Incidence = n())
 
-#split incidence into training and testing data
-incidence_train <- incidence |>
-  filter(Date < "2020-01-01")
-
-incidence_test <- incidence |> 
-  filter(Date >= "2020-01-01")
-
-#split deaths into training and testing data
+# stroke Deaths
 deaths <- stroke |> 
   filter(Outcome == "Dead") |> 
   group_by(Date) |> 
-  summarize(Count = n())
+  summarize(Deaths = n())
 
-#split deaths into training and testing data
-deaths_train <- deaths |>
-  filter(Date < "2020-01-01")
+#Table of Incidence and Deaths
+Inc_Deaths <- incidence |> 
+  inner_join(deaths, by = "Date")
 
-deaths_test <- deaths |> 
-  filter(Date >= "2020-01-01")
+#Training Data 
+Inc_Deaths_train <- Inc_Deaths |> 
+  filter(Date <= "2019-12-01")
 
 ```
 
@@ -54,31 +47,54 @@ deaths_test <- deaths |>
 
 # Exploratory Data Analysis
 
-```{r}
-## Frequency by Age Category
-stroke |> 
-  group_by(Age_Categorized,
-           Outcome) |> 
-  summarize(Count = n()) |> 
-  ggplot(aes(Count,
-             Age_Categorized,
-             fill = Outcome)) +
-  geom_col() +
-  xlab("Number of Cases") +
-  ylab("Age Category") +
-  facet_wrap(Outcome ~ .)
-```
-## Frequency by Sex
+## Incidence of Stroke in Various Age groups from 2010-2021
 ```{r}
 stroke |> 
-  group_by(Gender, Outcome) |> 
+  group_by(Year, Age_Categorized) |> 
   summarize(Count = n()) |> 
-  ggplot(aes(Gender, Count, fill = Gender)) +
+  mutate_at(vars(Year),factor) |> 
+  ggplot(aes(y = Year, x = Count,fill = Year)) +
   geom_col() +
-  xlab("Number of Cases") +
-  ylab("Age Category") +
-  facet_wrap(Outcome ~ .)
+  facet_wrap(Age_Categorized ~ .) +
+  xlab("Year") +
+  ylab("No of Cases") +
+  ggtitle("Incidence of Stroke in Various Age groups from 2010-2021")
 ```
+## Number of Deaths in Various Age groups from 2010-2021
+```{r}
+stroke |> 
+  filter(Outcome == "Dead") |> 
+  group_by(Year, Age_Categorized) |> 
+  summarize(Count = n()) |> 
+  mutate_at(vars(Year),factor) |> 
+  ggplot(aes(y = Year, x = Count,fill = Year)) +
+  geom_col() +
+  facet_wrap(Age_Categorized ~ .) +
+  xlab("Year") +
+  ylab("No of Deaths") +
+  ggtitle("Number of Deaths in Various Age groups from 2010-2021") +
+  theme(axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank())
+```
+
+## Number of cases by local government from the year 2010-2021
+```{r}
+stroke |> 
+  group_by(Year, LGA) |> 
+  summarize(Count = n()) |> 
+  mutate_at(vars(Year),factor) |> 
+  ggplot(aes(x = Year, y = Count,fill = Year)) +
+  geom_col() +
+  facet_wrap(LGA ~ .) +
+  xlab("Year") +
+  ylab("No of Cases") +
+  ggtitle("Number of Cases in Various Local governments from 2010-2021") +
+  theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank())
+```
+
 ## Frequency by Local government
 ```{r}
 map <- stroke |> 
@@ -93,120 +109,80 @@ mapview::mapview(map, xcol = "longitude", ycol = "latitude", zcol="Count",crs = 
 ```
 
 
+
+
+
 # Time Series Analysis of Incidence
 ```{r}
-#Change incidence data to time series graphics
-
-incidence <- ts(incidence,
-                frequency = 12,
-                start = c(2010,01),
-                end = c(2021,12))
-
-incidence_train_ts <- ts(incidence_train,
+# Convert the Data to times series graphics
+ts_train <- ts(Inc_Deaths_train[,c("Incidence","Deaths")],
                    frequency = 12,
                    start = c(2010, 01),
                    end = c(2019, 12))
 
-incidence_test_ts <- ts(incidence_test,
-                   frequency = 12,
-                   start = c(2020, 01),
-                   end = c(2021, 12))
-
-#Time Series Plot
-autoplot(incidence[, "Count"]) + 
-  ylab("Number of Cases") +
-  xlab("Year") +
-  ggtitle("Monthly Incidence of Stroke from 2010 - 2021")
 ```
 
 ```{r}
 #stl decompostion
-incidence_fit <- stl(incidence_train_ts[, "Count"], 
+incidence_fit <- stl(ts_train[, "Incidence"], 
            s.window = "periodic",
            robust = TRUE)
 
 # Decompositon plots
 autoplot(incidence_fit) +
-  ggtitle("STL decompostion of meantemp")
+  ggtitle("STL decompostion of Stroke Incidence")
 ```
 
 ```{r}
 #ARIMA modelling
-fit_arima <- auto.arima(incidence_train_ts[, "Count"],
+set.seed(2022)
+fit_arima_incidence <- auto.arima(ts_train[, "Incidence"],
                         stepwise = F,
                         approximation = F,
                         D = 1)
-fit_arima
+fit_arima_incidence
 ```
 
 ```{r}
 #check residuals
-checkresiduals(fit_arima)
+checkresiduals(fit_arima_incidence)
 ```
 
-
 ```{r}
-#accuracy of the ARIMA model
-accuracy(fit_arima)
-```
-```{r}
-fit_arima |> 
+# Forescast in the next two years
+fit_arima_incidence |> 
   forecast(23) |> 
   autoplot() +
   ylab("Number Of Cases") +
   xlab("Years")
 ```
 
-# Time Series Analyssis of Deaths
-```{r}
-deaths <- ts(deaths,
-                frequency = 12,
-                start = c(2010,01),
-                end = c(2021,12))
 
-deaths_train_ts <- ts(deaths_train,
-                   frequency = 12,
-                   start = c(2010, 01),
-                   end = c(2019, 12))
-
-deaths_test_ts <- ts(deaths_test,
-                   frequency = 12,
-                   start = c(2020, 01),
-                   end = c(2021, 12))
-
-#Time Series Plot
-autoplot(deaths[, "Count"]) + 
-  ylab("Number of Deaths") +
-  xlab("Year") +
-  ggtitle("Deaths from Stroke from 2010-2021")
-```
-
+# Time Series Analysis of Deaths
 ```{r}
 #stl decompostion
-deaths_fit <- stl(deaths_train_ts[, "Count"], 
+deaths_fit <- stl(ts_train[, "Deaths"], 
            s.window = "periodic",
            robust = TRUE)
 
 # Decompositon plots
 autoplot(deaths_fit) +
-  ggtitle("STL decompostion of meantemp")
+  ggtitle("STL decompostion of Deaths")
 ```
 ```{r}
 #ARIMA modelling
-deaths_fit_arima <- auto.arima(deaths_train_ts[, "Count"],
+deaths_fit_arima <- auto.arima(ts_train[, "Deaths"],
                         stepwise = F,
                         approximation = F,
                         D = 1)
 deaths_fit_arima
 ```
+
 ```{r}
 checkresiduals(deaths_fit_arima)
 ```
 ```{r}
-#accuracy of the ARIMA model
-accuracy(deaths_fit_arima)
-```
-```{r}
+#forecast for 2 years
 deaths_fit_arima |> 
   forecast(23) |> 
   autoplot() +
