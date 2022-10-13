@@ -1,0 +1,216 @@
+---
+title: "Time Series Analysis of Stroke Incidence and Deaths"
+author: "Adejumo Ridwan Suleiman"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Libraries
+```{r}
+library(tidyverse)
+library(fpp2)
+
+```
+
+# Data Cleaning and Manipulation
+```{r}
+#load stroke data
+stroke <- read_csv("~/Time-Series-Analysis-of-Stroke/Stroke time.csv") |> 
+  mutate(Date = lubridate::dmy(Date),
+         Age_Categorized = 
+           case_when(Age < 45 ~ "Less Than 45",
+                     Age >= 45 & Age < 65 ~ "45-64",
+                     Age >= 65 ~ "Greater or Equal To 65"))
+
+# stroke incidence
+incidence <- stroke |> 
+  group_by(Date) |> 
+  summarize(Count = n())
+
+#split incidence into training and testing data
+incidence_train <- incidence |>
+  filter(Date < "2020-01-01")
+
+incidence_test <- incidence |> 
+  filter(Date >= "2020-01-01")
+
+#split deaths into training and testing data
+deaths <- stroke |> 
+  filter(Outcome == "Dead") |> 
+  group_by(Date) |> 
+  summarize(Count = n())
+
+#split deaths into training and testing data
+deaths_train <- deaths |>
+  filter(Date < "2020-01-01")
+
+deaths_test <- deaths |> 
+  filter(Date >= "2020-01-01")
+
+```
+
+
+
+
+# Exploratory Data Analysis
+
+```{r}
+## Frequency by Age Category
+stroke |> 
+  group_by(Age_Categorized,
+           Outcome) |> 
+  summarize(Count = n()) |> 
+  ggplot(aes(Count,
+             Age_Categorized,
+             fill = Outcome)) +
+  geom_col() +
+  xlab("Number of Cases") +
+  ylab("Age Category") +
+  facet_wrap(Outcome ~ .)
+```
+## Frequency by Sex
+```{r}
+stroke |> 
+  group_by(Gender, Outcome) |> 
+  summarize(Count = n()) |> 
+  ggplot(aes(Gender, Count, fill = Gender)) +
+  geom_col() +
+  xlab("Number of Cases") +
+  ylab("Age Category") +
+  facet_wrap(Outcome ~ .)
+```
+## Frequency by Local government
+```{r}
+map <- stroke |> 
+  group_by(LGA) |> 
+  summarize(Count = n()) |> 
+  filter(LGA != "Others") |> 
+  cbind(latitude = c(10.1186,9.8096,9.8514,10.8230,10.7252,10.2933,9.8201,10.5085,11.0877,9.6698,10.2794),
+        longitude = c(11.0259,11.7862,11.1164,10.7733,11.3885,11.1669,11.3119,11.2524,11.2070,11.2977,11.4793))
+
+
+mapview::mapview(map, xcol = "longitude", ycol = "latitude", zcol="Count",crs = 4269, grid = FALSE)
+```
+
+
+# Time Series Analysis of Incidence
+```{r}
+#Change incidence data to time series graphics
+
+incidence <- ts(incidence,
+                frequency = 12,
+                start = c(2010,01),
+                end = c(2021,12))
+
+incidence_train_ts <- ts(incidence_train,
+                   frequency = 12,
+                   start = c(2010, 01),
+                   end = c(2019, 12))
+
+incidence_test_ts <- ts(incidence_test,
+                   frequency = 12,
+                   start = c(2020, 01),
+                   end = c(2021, 12))
+
+#Time Series Plot
+autoplot(incidence[, "Count"]) + 
+  ylab("Number of Cases") +
+  xlab("Year") +
+  ggtitle("Monthly Incidence of Stroke from 2010 - 2021")
+```
+
+```{r}
+#stl decompostion
+incidence_fit <- stl(incidence_train_ts[, "Count"], 
+           s.window = "periodic",
+           robust = TRUE)
+
+# Decompositon plots
+autoplot(incidence_fit) +
+  ggtitle("STL decompostion of meantemp")
+```
+
+```{r}
+#ARIMA modelling
+fit_arima <- auto.arima(incidence_train_ts[, "Count"],
+                        stepwise = F,
+                        approximation = F,
+                        D = 1)
+fit_arima
+```
+
+```{r}
+#check residuals
+checkresiduals(fit_arima)
+```
+
+
+```{r}
+#accuracy of the ARIMA model
+accuracy(fit_arima)
+```
+```{r}
+fit_arima |> 
+  forecast(23) |> 
+  autoplot() +
+  ylab("Number Of Cases") +
+  xlab("Years")
+```
+
+# Time Series Analyssis of Deaths
+```{r}
+deaths <- ts(deaths,
+                frequency = 12,
+                start = c(2010,01),
+                end = c(2021,12))
+
+deaths_train_ts <- ts(deaths_train,
+                   frequency = 12,
+                   start = c(2010, 01),
+                   end = c(2019, 12))
+
+deaths_test_ts <- ts(deaths_test,
+                   frequency = 12,
+                   start = c(2020, 01),
+                   end = c(2021, 12))
+
+#Time Series Plot
+autoplot(deaths[, "Count"]) + 
+  ylab("Number of Deaths") +
+  xlab("Year") +
+  ggtitle("Deaths from Stroke from 2010-2021")
+```
+
+```{r}
+#stl decompostion
+deaths_fit <- stl(deaths_train_ts[, "Count"], 
+           s.window = "periodic",
+           robust = TRUE)
+
+# Decompositon plots
+autoplot(deaths_fit) +
+  ggtitle("STL decompostion of meantemp")
+```
+```{r}
+#ARIMA modelling
+deaths_fit_arima <- auto.arima(deaths_train_ts[, "Count"],
+                        stepwise = F,
+                        approximation = F,
+                        D = 1)
+deaths_fit_arima
+```
+```{r}
+checkresiduals(deaths_fit_arima)
+```
+```{r}
+#accuracy of the ARIMA model
+accuracy(deaths_fit_arima)
+```
+```{r}
+deaths_fit_arima |> 
+  forecast(23) |> 
+  autoplot() +
+  ylab("Number of Deaths") +
+  xlab("Year")
+```
+
