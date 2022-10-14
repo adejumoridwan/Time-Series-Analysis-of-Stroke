@@ -113,6 +113,36 @@ stroke |>
       axis.text.x=element_blank(),
       axis.ticks.x=element_blank())
 ```
+## Stroke Incidence by Months
+```{r}
+stroke |> 
+  group_by(Year, `Month Name`) |> 
+  summarize(Count = n()) |> 
+  mutate_at(vars(c(Year,`Month Name`)),factor) |> 
+  ggplot(aes(x = Year, y = Count,fill = Year)) +
+  geom_col() +
+  facet_wrap(`Month Name` ~ .) +
+  theme(axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank()) +
+  ggtitle("Monthy Stroke Incidence")
+```
+
+## Stroke Deaths by Months
+```{r}
+stroke |> 
+  filter(Outcome == "Dead") |> 
+  group_by(Year, `Month Name`) |> 
+  summarize(Count = n()) |> 
+  mutate_at(vars(c(Year,`Month Name`)),factor) |> 
+  ggplot(aes(x = Year, y = Count,fill = Year)) +
+  geom_col() +
+  facet_wrap(`Month Name` ~ .) +
+  ggtitle("Monthy Stroke Deaths") +
+  theme(axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank())
+```
 
 
 ## Frequency by Local government
@@ -169,9 +199,18 @@ checkresiduals(fit_arima_incidence)
 ```
 
 ```{r}
-# Forescast in the next two years
+# Forecast in the next two years
 fit_arima_incidence |> 
   forecast(23) |> 
+  autoplot() +
+  ylab("Number Of Cases") +
+  xlab("Years")
+```
+
+```{r}
+#forecast for the next 5 years
+fit_arima_incidence |> 
+  forecast(61) |> 
   autoplot() +
   ylab("Number Of Cases") +
   xlab("Years")
@@ -201,6 +240,7 @@ deaths_fit_arima
 ```{r}
 checkresiduals(deaths_fit_arima)
 ```
+
 ```{r}
 #forecast for 2 years
 deaths_fit_arima |> 
@@ -209,4 +249,11 @@ deaths_fit_arima |>
   ylab("Number of Deaths") +
   xlab("Year")
 ```
-
+```{r}
+#forecast for the next 5 years
+deaths_fit_arima |> 
+  forecast(61) |> 
+  autoplot() +
+  ylab("Number of Deaths") +
+  xlab("Year")
+```
