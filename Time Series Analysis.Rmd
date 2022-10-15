@@ -21,6 +21,10 @@ stroke <- read_csv("~/Time-Series-Analysis-of-Stroke/Stroke time.csv") |>
            case_when(Age < 45 ~ "Less Than 45",
                      Age >= 45 & Age < 65 ~ "45-64",
                      Age >= 65 ~ "Greater or Equal To 65"),
+         Occupation = case_when(Occupation == "Farmer" ~ "Skilled",
+                                Occupation == "Dependent" ~ "Dependent",
+                                Occupation == "Professional" ~ "Professional",
+                                Occupation == "Skilled" ~ "Skilled"),
          MonthName = lubridate::month(Date,label = TRUE),
          Year = lubridate::year(Date)) |> 
   select(-`Month Name`)
@@ -54,7 +58,7 @@ Inc_Deaths_train <- Inc_Deaths |>
 
 # Exploratory Data Analysis
 
-## Incidence of Stroke in Various Age groups from 2010-2021
+## Incidence and Deaths of Stroke in Various Age groups from 2010-2021
 ```{r}
 A <- stroke |> 
   group_by(Year, Age_Categorized) |> 
@@ -63,11 +67,11 @@ A <- stroke |>
   ggplot(aes(y = Year, x = Count,fill = Year)) +
   geom_col() +
   facet_wrap(Age_Categorized ~ .) +
+  xlab("Number of Cases") +
   ggtitle("Incidence of Stroke in Various Age groups from 2010-2021") +
   theme(axis.title.y=element_blank(),
   axis.text.y=element_blank(),
   axis.ticks.y=element_blank(),
-  axis.title.x = element_blank(),
   legend.position = "none")
 
 B <- stroke |> 
@@ -78,7 +82,7 @@ B <- stroke |>
   ggplot(aes(y = Year, x = Count,fill = Year)) +
   geom_col() +
   facet_wrap(Age_Categorized ~ .) +
-  xlab("Number of Cases") +
+  xlab("Number of Deaths") +
   ggtitle("Number of Deaths in Various Age groups from 2010-2021") +
   theme(axis.title.y=element_blank(),
     axis.text.y=element_blank(),
@@ -89,56 +93,107 @@ B <- stroke |>
 ggarrange(A, B,nrow = 2)
 ```
 
-## Number of Deaths in Various Age groups from 2010-2021
+
+## Incidence and Deaths of stroke in various Gender from 2010-2021
 ```{r}
-stroke |> 
-  filter(Outcome == "Dead") |> 
-  group_by(Year, Age_Categorized) |> 
+C <- stroke |> 
+  group_by(Year, Gender) |> 
   summarize(Count = n()) |> 
   mutate_at(vars(Year),factor) |> 
-  ggplot(aes(y = Year, x = Count,fill = Year)) +
+  ggplot(aes(y = Gender, x = Count,fill = Gender)) +
   geom_col() +
-  facet_wrap(Age_Categorized ~ .) +
+  facet_wrap(Year ~ .) +
   xlab("Number of Cases") +
-  ggtitle("Number of Deaths in Various Age groups from 2010-2021") +
+  ggtitle("Incidence of Stroke in Various Gender from 2010-2021") +
+  theme(axis.title.y=element_blank(),
+  axis.text.y=element_blank(),
+  axis.ticks.y=element_blank(),
+  legend.position = "none")
+
+D <- stroke |> 
+  filter(Outcome == "Dead") |> 
+  group_by(Year, Gender) |> 
+  summarize(Count = n()) |> 
+  mutate_at(vars(Year),factor) |> 
+  ggplot(aes(y = Gender, x = Count,fill = Gender)) +
+  geom_col() +
+  facet_wrap(Year ~ .) +
+  xlab("Number of Deaths") +
+  ggtitle("Number of Deaths in Various Gender from 2010-2021") +
   theme(axis.title.y=element_blank(),
     axis.text.y=element_blank(),
-    axis.ticks.y=element_blank())
+    axis.ticks.y=element_blank(),
+    legend.key.size = unit(0.3, 'cm')) +
+  guides(shape = guide_legend(override.aes = list(size = 0.5)))
+
+ggarrange(C, D,nrow = 2)
 ```
 
-## Incidence cases by local government from the year 2010-2021
+
+
+## Incidence and Deaths of stroke in various occupations from 2010-2021
 ```{r}
-stroke |> 
-  group_by(Year, LGA) |> 
+E <- stroke |> 
+  group_by(Year, Occupation) |> 
   summarize(Count = n()) |> 
   mutate_at(vars(Year),factor) |> 
-  ggplot(aes(x = Year, y = Count,fill = Year)) +
+  ggplot(aes(y = Occupation, x = Count,fill = Occupation)) +
   geom_col() +
-  facet_wrap(LGA ~ .) +
-  xlab("Year") +
-  ylab("No of Cases") +
-  ggtitle("Number of Cases in Various Local governments from 2010-2021") +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank())
+  facet_wrap(Year ~ .) +
+  xlab("Number of Cases") +
+  ggtitle("Incidence of Stroke in Various Occupations from 2010-2021") +
+  theme(axis.title.y=element_blank(),
+  axis.text.y=element_blank(),
+  axis.ticks.y=element_blank(),
+  legend.position = "none")
+
+Fa <- stroke |> 
+  filter(Outcome == "Dead") |> 
+  group_by(Year, Occupation) |> 
+  summarize(Count = n()) |> 
+  mutate_at(vars(Year),factor) |> 
+  ggplot(aes(y = Occupation, x = Count,fill = Occupation)) +
+  geom_col() +
+  facet_wrap(Year ~ .) +
+  xlab("Number of Deaths") +
+  ggtitle("Number of Deaths in Various Occupations from 2010-2021") +
+  theme(axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    legend.key.size = unit(0.3, 'cm')) +
+  guides(shape = guide_legend(override.aes = list(size = 0.5)))
+
+ggarrange(E, Fa,nrow = 2)
 ```
-## No of deaths across various local governments from 2010-2021
+
+
+
+## Table showing stroke Incidence
+```{r}
+stroke |> 
+  group_by(Year, MonthName) |> 
+  summarize(Count = n()) |> 
+  mutate_at(vars(Year),factor) |> 
+  pivot_wider(names_from = MonthName,
+              values_from = Count,
+              values_fill = 0) |> 
+  write_csv(file = "incidence.csv")
+```
+
+## Table showing stroke deaths
 ```{r}
 stroke |> 
   filter(Outcome == "Dead") |> 
-  group_by(Year, LGA) |> 
+  group_by(Year, MonthName) |> 
   summarize(Count = n()) |> 
   mutate_at(vars(Year),factor) |> 
-  ggplot(aes(x = Year, y = Count,fill = Year)) +
-  geom_col() +
-  facet_wrap(LGA ~ .) +
-  xlab("Year") +
-  ylab("No of Cases") +
-  ggtitle("Number of Deaths in Various Local governments from 2010-2021") +
-  theme(axis.title.x=element_blank(),
-      axis.text.x=element_blank(),
-      axis.ticks.x=element_blank())
+  pivot_wider(names_from = MonthName,
+              values_from = Count,
+              values_fill = 0) |> 
+  write_csv(file = "death.csv")
 ```
+
+
 ## Stroke Incidence by Months
 ```{r}
 stroke |> 
@@ -151,7 +206,8 @@ stroke |>
   theme(axis.title.x=element_blank(),
     axis.text.x=element_blank(),
     axis.ticks.x=element_blank()) +
-  ggtitle("Monthy Stroke Incidence")
+  ylab("Number of Cases")+
+  ggtitle("Monthly Stroke Incidence")
 ```
 
 ## Stroke Deaths by Months
@@ -164,27 +220,12 @@ stroke |>
   ggplot(aes(x = Year, y = Count,fill = Year)) +
   geom_col() +
   facet_wrap(MonthName ~ .) +
-  ggtitle("Monthy Stroke Deaths") +
+  ylab("Number of Deaths") +
+  ggtitle("Monthly Stroke Deaths") +
   theme(axis.title.x=element_blank(),
     axis.text.x=element_blank(),
     axis.ticks.x=element_blank())
 ```
-
-
-## Frequency by Local government
-```{r}
-map <- stroke |> 
-  group_by(LGA) |> 
-  summarize(Count = n()) |> 
-  filter(LGA != "Others") |> 
-  cbind(latitude = c(10.1186,9.8096,9.8514,10.8230,10.7252,10.2933,9.8201,10.5085,11.0877,9.6698,10.2794),
-        longitude = c(11.0259,11.7862,11.1164,10.7733,11.3885,11.1669,11.3119,11.2524,11.2070,11.2977,11.4793))
-
-
-mapview::mapview(map, xcol = "longitude", ycol = "latitude", zcol="Count",crs = 4269, grid = FALSE)
-```
-
-
 
 
 
